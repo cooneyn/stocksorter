@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>StockSorter</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+<style>
+  html, body, #root { margin: 0; padding: 0; min-height: 100vh; }
+  * { box-sizing: border-box; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="react">
+const { useState, useMemo, useEffect, useRef } = React;
+
+function Icon({ children, size = 16, color = "currentColor", style }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color}
+         strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={style}>
+      {children}
+    </svg>
+  );
+}
+const ChevronLeft = (p) => <Icon {...p}><polyline points="15 18 9 12 15 6" /></Icon>;
+const Search = (p) => <Icon {...p}><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></Icon>;
+const ArrowUpDown = (p) => <Icon {...p}><polyline points="7 11 12 6 17 11" /><polyline points="7 13 12 18 17 13" /></Icon>;
+const AlertTriangle = (p) => <Icon {...p}><path d="M12 2 1 21h22L12 2z" /><line x1="12" y1="9" x2="12" y2="13" /><circle cx="12" cy="17" r="0.5" fill="currentColor" /></Icon>;
+const CircleSlash = (p) => <Icon {...p}><circle cx="12" cy="12" r="10" /><line x1="4.9" y1="4.9" x2="19.1" y2="19.1" /></Icon>;
+const Grip = (p) => (
+  <Icon {...p}>
+    <circle cx="9" cy="6" r="1" fill="currentColor" /><circle cx="15" cy="6" r="1" fill="currentColor" />
+    <circle cx="9" cy="12" r="1" fill="currentColor" /><circle cx="15" cy="12" r="1" fill="currentColor" />
+    <circle cx="9" cy="18" r="1" fill="currentColor" /><circle cx="15" cy="18" r="1" fill="currentColor" />
+  </Icon>
+);
+const Lock = (p) => <Icon {...p}><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0110 0v4" /></Icon>;
+const ArrowDownWideNarrow = (p) => (
+  <Icon {...p}>
+    <path d="M3 6h6" /><path d="M3 12h9" /><path d="M3 18h12" />
+    <path d="M18 6v12" /><polyline points="14 16 18 20 22 16" />
+  </Icon>
+);
+const Check = (p) => <Icon {...p}><polyline points="20 6 9 17 4 12" /></Icon>;
+const PinIcon = (p) => (
+  <Icon {...p} fill={p.fill || "none"}>
+    <line x1="12" y1="17" x2="12" y2="22" />
+    <path d="M5 17h14l-1.4-1.4A2 2 0 0117 14.2V9a5 5 0 00-10 0v5.2a2 2 0 01-.6 1.4L5 17z" />
+  </Icon>
+);
+const EyeIcon = (p) => (
+  <Icon {...p}>
+    <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" />
+    <circle cx="12" cy="12" r="3" />
+  </Icon>
+);
+const SlidersIcon = (p) => (
+  <Icon {...p}>
+    <line x1="4" y1="6" x2="20" y2="6" /><circle cx="9" cy="6" r="2" fill="currentColor" />
+    <line x1="4" y1="12" x2="20" y2="12" /><circle cx="15" cy="12" r="2" fill="currentColor" />
+    <line x1="4" y1="18" x2="20" y2="18" /><circle cx="7" cy="18" r="2" fill="currentColor" />
+  </Icon>
+);
+
+const SIZE_RUN = ["3", "4", "5", "6", "7", "8", "9"];
+function makeSizes(pattern) { return SIZE_RUN.map((size, i) => ({ size, qty: pattern[i] ?? 0 })); }
+
+const COLLECTIONS = [
+  { id: "womens-slippers", name: "Women's Wide Fit Slippers", sortType: "Manual", status: "Active", products: [
+    { name: "Women's Wide Fit DB Luella Pump Slippers", sku: "WFS-LUE-001", color: "#C9A98C", published: "Active", sizes: makeSizes([2,4,6,5,3,1,0]) },
+    { name: "Women's Wide Fit DB Reedmace Ankle Slippers", sku: "WFS-REE-002", color: "#9FB8AD", published: "Active", sizes: makeSizes([0,1,2,1,0,0,0]) },
+    { name: "Women's Wide Fit DB Galilee Slippers", sku: "WFS-GAL-003", color: "#26323A", published: "Active", sizes: makeSizes([5,8,9,7,6,4,2]) },
+    { name: "Women's Wide Fit DB Rug Mule Slippers", sku: "WFS-RUG-004", color: "#A9C6D8", published: "Active", sizes: makeSizes([3,3,4,2,2,1,1]) },
+    { name: "Women's Wide Fit DB Pitsford Slippers", sku: "WFS-PIT-005", color: "#C97B63", published: "Active", sizes: makeSizes([0,0,1,0,0,0,0]) },
+    { name: "Women's Wide Fit DB Welney Mule Slippers", sku: "WFS-WEL-006", color: "#D9C9A3", published: "Active", sizes: makeSizes([6,7,8,6,5,3,2]) },
+    { name: "Women's Wide Fit DB Yeovil Slippers", sku: "WFS-YEO-007", color: "#7C8B7A", published: "Draft", sizes: makeSizes([1,0,0,0,0,0,0]) },
+    { name: "Women's Wide Fit DB Florentine Slippers", sku: "WFS-FLO-008", color: "#6B6F5E", published: "Active", sizes: makeSizes([2,2,3,2,1,0,0]) },
+    { name: "Women's Wide Fit DB Jolene Slippers", sku: "WFS-JOL-009", color: "#36475A", published: "Active", sizes: makeSizes([4,5,6,4,3,2,1]) },
+  ]},
+  { id: "mens-slippers", name: "Men's Wide Fit Slippers", sortType: "Manual", status: "Active", products: [
+    { name: "Men's Wide Fit Harker Mule Slippers", sku: "MFS-HAR-001", color: "#4A3F35", published: "Active", sizes: makeSizes([3,5,6,7,5,3,1]) },
+    { name: "Men's Wide Fit Coniston Slippers", sku: "MFS-CON-002", color: "#5B5246", published: "Active", sizes: makeSizes([0,0,0,1,0,0,0]) },
+    { name: "Men's Wide Fit Bowness Slipper Boot", sku: "MFS-BOW-003", color: "#2E2A26", published: "Active", sizes: makeSizes([4,6,7,8,6,4,2]) },
+    { name: "Men's Wide Fit Grasmere Slippers", sku: "MFS-GRA-004", color: "#736357", published: "Draft", sizes: makeSizes([1,1,0,0,0,0,0]) },
+  ]},
+  { id: "womens-slip-on", name: "Women's Wide Fit Slip-On Shoes", sortType: "Manual", status: "Draft", products: [
+    { name: "Women's Wide Fit Bexley Slip-On Shoe", sku: "WSO-BEX-001", color: "#8C6A4F", published: "Active", sizes: makeSizes([2,3,4,3,2,1,0]) },
+    { name: "Women's Wide Fit Norah Slip-On Loafer", sku: "WSO-NOR-002", color: "#3D4A52", published: "Active", sizes: makeSizes([0,1,1,0,0,0,0]) },
+    { name: "Women's Wide Fit Pemberton Slip-On Shoe", sku: "WSO-PEM-003", color: "#6E4B3A", published: "Active", sizes: makeSizes([5,6,7,6,4,2,1]) },
+  ]},
+  { id: "womens-boots", name: "Women's Wide Fit Boots", sortType: "Best selling", status: "Active", products: [
+    { name: "Women's Wide Fit Harlow Ankle Boot", sku: "WFB-HAR-001", color: "#3E2723", published: "Active", sizes: makeSizes([4,6,7,5,4,2,1]) },
+    { name: "Women's Wide Fit Sienna Chelsea Boot", sku: "WFB-SIE-002", color: "#5D4037", published: "Draft", sizes: makeSizes([0,0,0,0,0,0,0]) },
+    { name: "Women's Wide Fit Dakota Knee Boot", sku: "WFB-DAK-003", color: "#1B2631", published: "Active", sizes: makeSizes([2,3,3,2,1,0,0]) },
+    { name: "Women's Wide Fit Marlow Lace Boot", sku: "WFB-MAR-004", color: "#6B4F4F", published: "Active", sizes: makeSizes([7,9,10,8,6,4,3]) },
+    { name: "Women's Wide Fit Tilly Wedge Boot", sku: "WFB-TIL-005", color: "#2E2A26", published: "Active", sizes: makeSizes([1,1,0,1,0,0,0]) },
+  ]},
+  { id: "mens-trainers", name: "Men's Wide Fit Trainers", sortType: "Manual", status: "Active", products: [
+    { name: "Men's Wide Fit Atlas Trainer", sku: "WFT-ATL-001", color: "#1F3A5F", published: "Active", sizes: makeSizes([3,4,6,7,5,3,2]) },
+    { name: "Men's Wide Fit Carrick Runner", sku: "WFT-CAR-002", color: "#465362", published: "Active", sizes: makeSizes([0,0,1,0,0,0,0]) },
+    { name: "Men's Wide Fit Denholm Sneaker", sku: "WFT-DEN-003", color: "#22272B", published: "Active", sizes: makeSizes([5,6,8,9,7,5,4]) },
+    { name: "Men's Wide Fit Esk Trail Trainer", sku: "WFT-ESK-004", color: "#6E7B8B", published: "Draft", sizes: makeSizes([1,0,0,0,0,0,0]) },
+    { name: "Men's Wide Fit Fenwick Trainer", sku: "WFT-FEN-005", color: "#3C4A3D", published: "Active", sizes: makeSizes([2,2,3,2,1,1,0]) },
+  ]},
+  { id: "womens-sandals", name: "Women's Wide Fit Sandals", sortType: "Manual", status: "Draft", products: [
+    { name: "Women's Wide Fit Solana Sandal", sku: "WFA-SOL-001", color: "#D8B384", published: "Active", sizes: makeSizes([4,5,6,4,3,1,0]) },
+    { name: "Women's Wide Fit Marbella Slide", sku: "WFA-MAR-002", color: "#C2785C", published: "Draft", sizes: makeSizes([0,0,0,0,0,0,0]) },
+    { name: "Women's Wide Fit Capri Wedge Sandal", sku: "WFA-CAP-003", color: "#E3CBAE", published: "Active", sizes: makeSizes([2,3,2,2,1,0,0]) },
+    { name: "Women's Wide Fit Ravello Slide", sku: "WFA-RAV-004", color: "#A8763F", published: "Active", sizes: makeSizes([6,7,6,5,4,2,1]) },
+  ]},
+];
+
+function totalStock(p) { return p.sizes.reduce((s, x) => s + x.qty, 0); }
+function sizesInStock(p) { return p.sizes.filter((s) => s.qty > 0).length; }
+function deriveSignals(p) {
+  const seed = p.sku.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
+  const total = totalStock(p);
+  const unitsSold30d = Math.max(0, Math.round(total * 1.4 + (seed % 37)));
+  const wideFitUnits = Math.min(total, Math.round(total * (0.25 + (seed % 60) / 100)));
+  const wideFitPct = total === 0 ? 0 : Math.round((wideFitUnits / total) * 100);
+  const price = (19.99 + (seed % 40)).toFixed(2);
+  const performanceScore = (seed * 7) % 100;
+  return { unitsSold30d, wideFitUnits, wideFitPct, price, performanceScore };
+}
+const LOW_STOCK_THRESHOLD = 8;
+function stockStatus(total) { if (total === 0) return "out"; if (total < LOW_STOCK_THRESHOLD) return "low"; return "ok"; }
+const STOCK_STYLES = {
+  out: { label: "Out of stock", color: "#B43F2E", bg: "#FBEAE6" },
+  low: { label: "Low stock", color: "#A06A1F", bg: "#FBF1E2" },
+  ok: { label: "In stock", color: "#2F6F5E", bg: "#E8F2EE" },
+};
+const WIDE_FIT_STYLES = {
+  good: { color: "#2F6F5E", bg: "#E8F2EE" },
+  limited: { color: "#A06A1F", bg: "#FBF1E2" },
+  poor: { color: "#B43F2E", bg: "#FBEAE6" },
+};
+function getWideFitLevel(pct) { if (pct >= 60) return "good"; if (pct >= 30) return "limited"; return "poor"; }
+const SORT_OPTIONS = ["Manually", "Best selling", "Alphabetically A-Z", "Alphabetically Z-A"];
+function getSortedSkus(sortType, products, currentOrder) {
+  if (sortType === "Alphabetically A-Z") return [...products].sort((a, b) => a.name.localeCompare(b.name)).map((p) => p.sku);
+  if (sortType === "Alphabetically Z-A") return [...products].sort((a, b) => b.name.localeCompare(a.name)).map((p) => p.sku);
+  if (sortType === "Best selling") return products.map((p) => p.sku);
+  return currentOrder;
+}
+function rebuildOrderAfterUnpinnedDrag(oldOrder, pinnedSkus, newUnpinnedSequence) {
+  const queue = [...newUnpinnedSequence];
+  return oldOrder.map((sku) => (pinnedSkus.includes(sku) ? sku : queue.shift()));
+}
+
+function StockBar({ total, max }) {
+  const status = stockStatus(total);
+  const pct = Math.min(100, Math.round((total / max) * 100));
+  const color = STOCK_STYLES[status].color;
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 110 }}>
+      <div style={{ flex: 1, height: 6, borderRadius: 999, background: "#E5E7E1", overflow: "hidden" }}>
+        <div style={{ width: pct + "%", height: "100%", background: color, borderRadius: 999, transition: "width 300ms ease" }} />
+      </div>
+      <span style={{ fontSize: 12, fontWeight: 600, color: "#1B231E", width: 26, textAlign: "right" }}>{total}</span>
+    </div>
+  );
+}
+function StockBadge({ status }) {
+  const s = STOCK_STYLES[status];
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 999, color: s.color, background: s.bg, whiteSpace: "nowrap" }}>
+      {status === "out" ? <CircleSlash size={11} /> : status === "low" ? <AlertTriangle size={11} /> : null}
+      {s.label}
+    </span>
+  );
+}
+function PublishedBadge({ published }) {
+  const isActive = published === "Active";
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", fontSize: 11.5, fontWeight: 600, padding: "3px 11px", borderRadius: 999, background: isActive ? "#CDF2C5" : "#D8E9FB", color: isActive ? "#1F7A2E" : "#1B5FA8", whiteSpace: "nowrap" }}>
+      {published}
+    </span>
+  );
+}
+function WellStockedBadge() {
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 999, color: "#2F6F5E", background: "#E8F2EE", whiteSpace: "nowrap" }}>
+      <Check size={11} /> Well stocked
+    </span>
+  );
+}
+function WideFitBadge({ pct }) {
+  const level = getWideFitLevel(pct);
+  const s = WIDE_FIT_STYLES[level];
+  return (
+    <span title={pct + "% of this product's stock is true wide/extra-wide fit"}
+      style={{ display: "inline-flex", alignItems: "center", fontSize: 11.5, fontWeight: 600, padding: "2px 8px", borderRadius: 999, color: s.color, background: s.bg, whiteSpace: "nowrap" }}>
+      {pct}%
+    </span>
+  );
+}
+function PerformanceBadge({ score }) {
+  return (
+    <span title="Mock data — placeholder until real GA4 view/conversion data is wired in"
+      style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 999, color: "#6B5B95", background: "transparent", border: "1px dashed #C9BEDB", whiteSpace: "nowrap" }}>
+      {score}<span style={{ fontWeight: 500, opacity: 0.75 }}>mock</span>
+    </span>
+  );
+}
+
+function StockHealthChart({ collections }) {
+  const perPage = 5;
+  const [page, setPage] = useState(0);
+  const totalPages = Math.max(1, Math.ceil(collections.length / perPage));
+  const pageItems = collections.slice(page * perPage, page * perPage + perPage);
+
+  return (
+    <div style={{ flex: "1 1 320px", minWidth: 0, background: "#FFFFFF", border: "1px solid #E2E5E0", borderRadius: 10, padding: "16px 18px", display: "flex", flexDirection: "column" }}>
+      <div style={{ fontSize: 14, fontWeight: 700, color: "#1B231E", marginBottom: 12 }}>Stock health by collection</div>
+      <div style={{ flex: 1 }}>
+        {pageItems.map((c) => {
+          const out = c.products.filter((p) => stockStatus(totalStock(p)) === "out").length;
+          const low = c.products.filter((p) => stockStatus(totalStock(p)) === "low").length;
+          const ok = c.products.length - out - low;
+          return (
+            <div key={c.id} style={{ marginBottom: 10 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 4 }}>
+                <span style={{ color: "#1B231E", fontWeight: 600 }}>{c.name}</span>
+                <span style={{ color: "#9AA39B" }}>{c.products.length} products</span>
+              </div>
+              <div style={{ display: "flex", height: 10, borderRadius: 999, overflow: "hidden", background: "#EEF0EC" }}>
+                {ok > 0 && <div style={{ flex: ok, background: "#2F6F5E" }} title={ok + " in stock"} />}
+                {low > 0 && <div style={{ flex: low, background: "#A06A1F" }} title={low + " low stock"} />}
+                {out > 0 && <div style={{ flex: out, background: "#B43F2E" }} title={out + " out of stock"} />}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 8, paddingTop: 10, borderTop: "1px solid #EEF0EC" }}>
+        <div style={{ display: "flex", gap: 14, fontSize: 11, color: "#5B6760" }}>
+          <span style={{ display: "flex", alignItems: "center", gap: 5 }}><span style={{ width: 8, height: 8, borderRadius: 999, background: "#2F6F5E", display: "inline-block" }} />In stock</span>
+          <span style={{ display: "flex", alignItems: "center", gap: 5 }}><span style={{ width: 8, height: 8, borderRadius: 999, background: "#A06A1F", display: "inline-block" }} />Low</span>
+          <span style={{ display: "flex", alignItems: "center", gap: 5 }}><span style={{ width: 8, height: 8, borderRadius: 999, background: "#B43F2E", display: "inline-block" }} />Out</span>
+        </div>
+        {totalPages > 1 && (
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <button onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}
+              style={{ width: 24, height: 24, borderRadius: 6, border: "1px solid #E2E5E0", background: "#FFFFFF", color: page === 0 ? "#D8DBD5" : "#5B6760", display: "flex", alignItems: "center", justifyContent: "center", cursor: page === 0 ? "default" : "pointer" }}>
+              <ChevronLeft size={13} />
+            </button>
+            <span style={{ fontSize: 11.5, color: "#5B6760" }}>{page + 1} / {totalPages}</span>
+            <button onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} disabled={page === totalPages - 1}
+              style={{ width: 24, height: 24, borderRadius: 6, border: "1px solid #E2E5E0", background: "#FFFFFF", color: page === totalPages - 1 ? "#D8DBD5" : "#5B6760", display: "flex", alignItems: "center", justifyContent: "center", cursor: page === totalPages - 1 ? "default" : "pointer" }}>
+              <ChevronLeft size={13} style={{ transform: "rotate(180deg)" }} />
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function formatMonthLabel(d) {
+  return d.toLocaleDateString("en-GB", { month: "short" }) + " '" + String(d.getFullYear()).slice(-2);
+}
+function toDateInputValue(d) {
+  return d.toISOString().slice(0, 10);
+}
+function monthsBack(n) {
+  const d = new Date();
+  d.setDate(1);
+  d.setMonth(d.getMonth() - (n - 1));
+  return d;
+}
+function generateTrendData(startStr, endStr, avgPerf) {
+  let start = new Date(startStr);
+  let end = new Date(endStr);
+  if (isNaN(start) || isNaN(end)) return [];
+  if (start > end) { const tmp = start; start = end; end = tmp; }
+  const points = [];
+  let cursor = new Date(start.getFullYear(), start.getMonth(), 1);
+  const lastMonth = new Date(end.getFullYear(), end.getMonth(), 1);
+  while (cursor <= lastMonth) {
+    points.push(new Date(cursor));
+    cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
+  }
+  if (points.length === 0) points.push(lastMonth);
+  const n = points.length;
+  const startVal = Math.max(5, avgPerf - 50);
+  const endVal = Math.min(98, avgPerf + 35);
+  return points.map((d, i) => {
+    const t = n > 1 ? i / (n - 1) : 1;
+    const eased = Math.pow(t, 1.6);
+    const noise = Math.sin(i * 1.7) * 4;
+    const value = Math.max(0, Math.min(100, Math.round(startVal + (endVal - startVal) * eased + noise)));
+    return { label: formatMonthLabel(d), value };
+  });
+}
+
+function SimulatedPerformanceTrend({ avgPerf }) {
+  const [range, setRange] = useState(() => ({ start: toDateInputValue(monthsBack(8)), end: toDateInputValue(new Date()) }));
+  const data = useMemo(() => generateTrendData(range.start, range.end, avgPerf), [range, avgPerf]);
+
+  function applyPreset(months) {
+    setRange({ start: toDateInputValue(monthsBack(months)), end: toDateInputValue(new Date()) });
+  }
+
+  const w = 640, h = 150, pad = 26;
+  const points = data.map((d, i) => {
+    const x = pad + (data.length > 1 ? (i / (data.length - 1)) * (w - pad * 2) : (w - pad * 2) / 2);
+    const y = h - pad - (d.value / 100) * (h - pad * 2);
+    return [x, y];
+  });
+  const pathD = points.map((p, i) => (i === 0 ? "M" : "L") + p[0] + "," + p[1]).join(" ");
+  const dateInputStyle = { border: "1px solid #E2E5E0", borderRadius: 6, padding: "4px 6px", fontSize: 11.5, color: "#1B231E", background: "#FFFFFF" };
+  const presetBtnStyle = { border: "1px solid #E2E5E0", background: "#FFFFFF", color: "#5B6760", borderRadius: 6, padding: "4px 8px", fontSize: 11, fontWeight: 600, cursor: "pointer" };
+
+  return (
+    <div style={{ flex: "1 1 320px", minWidth: 0, background: "#FFFFFF", border: "1px solid #E2E5E0", borderRadius: 10, padding: "16px 18px", display: "flex", flexDirection: "column" }}>
+      <div style={{ fontSize: 14, fontWeight: 700, color: "#1B231E", marginBottom: 2 }}>Performance trend</div>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 6, marginBottom: 10, padding: "8px 10px", borderRadius: 8, background: "#F4F1F9", border: "1px dashed #C9BEDB", color: "#6B5B95", fontSize: 11.5, lineHeight: 1.4 }}>
+        <SlidersIcon size={13} style={{ marginTop: 1, flexShrink: 0 }} />
+        <span><strong>Simulated</strong> for UX testing only — there's no real historical performance data behind this yet.</span>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 12, flexWrap: "wrap" }}>
+        <input type="date" value={range.start} onChange={(e) => setRange((r) => ({ ...r, start: e.target.value }))} style={dateInputStyle} />
+        <span style={{ color: "#9AA39B", fontSize: 11 }}>to</span>
+        <input type="date" value={range.end} onChange={(e) => setRange((r) => ({ ...r, end: e.target.value }))} style={dateInputStyle} />
+        <div style={{ display: "flex", gap: 4, marginLeft: "auto" }}>
+          {[3, 6, 8, 12].map((n) => <button key={n} onClick={() => applyPreset(n)} style={presetBtnStyle}>{n}M</button>)}
+        </div>
+      </div>
+      <div style={{ flex: 1, minHeight: 0 }}>
+        <svg width="100%" height="100%" viewBox={"0 0 " + w + " " + h} preserveAspectRatio="none" style={{ display: "block" }}>
+          <path d={pathD} fill="none" stroke="#6B5B95" strokeWidth="2" strokeDasharray="6 4" vectorEffect="non-scaling-stroke" />
+          {points.map((p, i) => <circle key={i} cx={p[0]} cy={p[1]} r="3.5" fill="#6B5B95" />)}
+          {data.map((d, i) => <text key={i} x={points[i][0]} y={h - 6} fontSize="9" fill="#9AA39B" textAnchor="middle">{d.label}</text>)}
+        </svg>
+      </div>
+    </div>
+  );
+}
+
+function AppLogo({ size = 28 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 28 28" fill="none">
+      <rect width="28" height="28" rx="7" fill="#2F6F5E" />
+      <rect x="7" y="15" width="3.2" height="7" rx="1" fill="#FFFFFF" />
+      <rect x="12.4" y="10" width="3.2" height="12" rx="1" fill="#FFFFFF" />
+      <rect x="17.8" y="6" width="3.2" height="16" rx="1" fill="#FFFFFF" />
+    </svg>
+  );
+}
+function AppHeader() {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 20px", borderBottom: "1px solid #E2E5E0", background: "#FFFFFF" }}>
+      <AppLogo size={26} />
+      <span style={{ fontSize: 15.5, fontWeight: 700, letterSpacing: "-0.01em" }}>
+        <span style={{ color: "#1B231E" }}>Stock</span><span style={{ color: "#2F6F5E" }}>Sorter</span>
+      </span>
+    </div>
+  );
+}
+
+function Dashboard({ onSelect, pinnedTotal }) {
+  const [query, setQuery] = useState("");
+  const ranked = useMemo(() => {
+    return COLLECTIONS.map((c) => {
+      const outCount = c.products.filter((p) => stockStatus(totalStock(p)) === "out").length;
+      const lowCount = c.products.filter((p) => stockStatus(totalStock(p)) === "low").length;
+      return { ...c, outCount, lowCount, priority: outCount * 2 + lowCount };
+    }).sort((a, b) => b.priority - a.priority || a.name.localeCompare(b.name));
+  }, []);
+  const needsAttention = ranked.filter((c) => c.priority > 0).length;
+  const catalogStats = useMemo(() => {
+    let totalUnits = 0, activeCount = 0, draftCount = 0, wideFitSum = 0, wideFitCount = 0;
+    COLLECTIONS.forEach((c) => {
+      c.products.forEach((p) => {
+        totalUnits += totalStock(p);
+        if (p.published === "Active") activeCount++; else draftCount++;
+        wideFitSum += deriveSignals(p).wideFitPct;
+        wideFitCount++;
+      });
+    });
+    return { totalUnits, activeCount, draftCount, avgWideFit: wideFitCount ? Math.round(wideFitSum / wideFitCount) : 0 };
+  }, []);
+  const avgPerf = useMemo(() => {
+    const allProducts = COLLECTIONS.flatMap((c) => c.products);
+    return allProducts.reduce((sum, p) => sum + deriveSignals(p).performanceScore, 0) / Math.max(allProducts.length, 1);
+  }, []);
+  const matches = useMemo(() => {
+    if (!query.trim()) return ranked;
+    const q = query.trim().toLowerCase();
+    return ranked.filter((c) => c.name.toLowerCase().includes(q));
+  }, [query, ranked]);
+
+  return (
+    <div style={{ maxWidth: 1280, margin: "0 auto", padding: "32px 24px" }}>
+      <div style={{ marginBottom: 18 }}>
+        <h1 style={{ fontSize: 22, fontWeight: 700, color: "#1B231E", margin: 0, letterSpacing: "-0.01em" }}>Dashboard</h1>
+      </div>
+      <div style={{ display: "flex", gap: 12, marginBottom: 18, flexWrap: "wrap" }}>
+        <div style={{ flex: "1 1 160px", background: "#FFFFFF", border: "1px solid #E2E5E0", borderRadius: 10, padding: "14px 16px" }}>
+          <div style={{ fontSize: 24, fontWeight: 700, color: "#1B231E" }}>{COLLECTIONS.length}</div>
+          <div style={{ fontSize: 12, color: "#5B6760", marginTop: 2 }}>Collections</div>
+        </div>
+        <div style={{ flex: "1 1 160px", background: needsAttention > 0 ? "#FBF1E2" : "#FFFFFF", border: needsAttention > 0 ? "1px solid #EBD6A8" : "1px solid #E2E5E0", borderRadius: 10, padding: "14px 16px" }}>
+          <div style={{ fontSize: 24, fontWeight: 700, color: needsAttention > 0 ? "#A06A1F" : "#1B231E" }}>{needsAttention}</div>
+          <div style={{ fontSize: 12, color: needsAttention > 0 ? "#A06A1F" : "#5B6760", marginTop: 2 }}>Need attention</div>
+        </div>
+        <div style={{ flex: "1 1 160px", background: "#FFFFFF", border: "1px solid #E2E5E0", borderRadius: 10, padding: "14px 16px" }}>
+          <div style={{ fontSize: 24, fontWeight: 700, color: "#1B231E" }}>{catalogStats.totalUnits.toLocaleString()}</div>
+          <div style={{ fontSize: 12, color: "#5B6760", marginTop: 2 }}>Total units in stock</div>
+        </div>
+        <div style={{ flex: "1 1 160px", background: "#FFFFFF", border: "1px solid #E2E5E0", borderRadius: 10, padding: "14px 16px" }}>
+          <div style={{ fontSize: 24, fontWeight: 700, color: "#1B231E" }}>{catalogStats.avgWideFit}%</div>
+          <div style={{ fontSize: 12, color: "#5B6760", marginTop: 2 }}>Avg wide-fit stock</div>
+        </div>
+        <div style={{ flex: "1 1 160px", background: "#FFFFFF", border: "1px solid #E2E5E0", borderRadius: 10, padding: "14px 16px" }}>
+          <div style={{ fontSize: 24, fontWeight: 700, color: "#1B231E" }}>{catalogStats.activeCount} / {catalogStats.draftCount}</div>
+          <div style={{ fontSize: 12, color: "#5B6760", marginTop: 2 }}>Active / Draft products</div>
+        </div>
+        <div style={{ flex: "1 1 160px", background: "#FFFFFF", border: "1px solid #E2E5E0", borderRadius: 10, padding: "14px 16px" }}>
+          <div style={{ fontSize: 24, fontWeight: 700, color: "#1B231E" }}>{pinnedTotal}</div>
+          <div style={{ fontSize: 12, color: "#5B6760", marginTop: 2 }}>Pinned across catalog</div>
+        </div>
+      </div>
+      <div style={{ display: "flex", gap: 16, marginBottom: 18, flexWrap: "wrap", alignItems: "stretch" }}>
+        <StockHealthChart collections={COLLECTIONS} />
+        <SimulatedPerformanceTrend avgPerf={avgPerf} />
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, border: "1px solid #E2E5E0", borderRadius: 10, padding: "10px 14px", background: "#FFFFFF", marginBottom: 18 }}>
+        <Search size={16} color="#9AA39B" />
+        <input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search collections, e.g. 'slip'"
+          style={{ border: "none", outline: "none", fontSize: 14, flex: 1, background: "transparent", color: "#1B231E" }} />
+        {query && <span style={{ fontSize: 12, color: "#9AA39B" }}>{matches.length} match{matches.length === 1 ? "" : "es"}</span>}
+      </div>
+      <p style={{ fontSize: 13, color: "#5B6760", margin: "0 0 14px" }}>Collections needing attention are surfaced first — search to narrow down further.</p>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {matches.length === 0 && <div style={{ padding: 24, textAlign: "center", fontSize: 13, color: "#9AA39B" }}>No collections match "{query}".</div>}
+        {matches.map((c) => {
+          const { outCount, lowCount } = c;
+          return (
+            <button key={c.id} onClick={() => onSelect(c.id)}
+              style={{ display: "flex", alignItems: "center", gap: 16, padding: "14px 16px", background: "#FFFFFF", border: "1px solid #E2E5E0", borderRadius: 10, cursor: "pointer", textAlign: "left" }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#2F6F5E"; e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.06)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#E2E5E0"; e.currentTarget.style.boxShadow = "none"; }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2, width: 44, height: 44, borderRadius: 8, overflow: "hidden", flexShrink: 0 }}>
+                {c.products.slice(0, 4).map((p, i) => <div key={i} style={{ background: p.color }} />)}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "#1B231E" }}>{c.name}</div>
+                <div style={{ fontSize: 12, color: "#5B6760", marginTop: 2 }}>{c.products.length} products &middot; {c.sortType} sort &middot; {c.status}</div>
+              </div>
+              <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                {outCount > 0 && <StockBadge status="out" />}
+                {lowCount > 0 && <StockBadge status="low" />}
+                {outCount === 0 && lowCount === 0 && <WellStockedBadge />}
+              </div>
+              <ChevronLeft size={16} style={{ transform: "rotate(180deg)", color: "#9AA39B", flexShrink: 0 }} />
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function StorefrontPreview({ items }) {
+  return (
+    <div style={{ flex: "0 0 320px", background: "#FFFFFF", border: "1px solid #E2E5E0", borderRadius: 10, padding: 16, position: "sticky", top: 20 }}>
+      <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.04em", color: "#5B6760", textTransform: "uppercase", marginBottom: 2 }}>Storefront preview</div>
+      <div style={{ fontSize: 12, color: "#5B6760", marginBottom: 12 }}>How this order looks to a customer</div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, maxHeight: 560, overflowY: "auto" }}>
+        {items.map((p) => {
+          const isOut = stockStatus(p.total) === "out";
+          return (
+            <div key={p.sku} style={{ border: "1px solid #EEF0EC", borderRadius: 8, overflow: "hidden", opacity: isOut ? 0.6 : 1 }}>
+              <div style={{ height: 80, background: p.color, position: "relative" }}>
+                {isOut && <span style={{ position: "absolute", top: 6, left: 6, background: "rgba(0,0,0,0.6)", color: "#FFF", fontSize: 9, fontWeight: 700, padding: "2px 6px", borderRadius: 4, letterSpacing: "0.03em" }}>SOLD OUT</span>}
+              </div>
+              <div style={{ padding: "6px 8px" }}>
+                <div style={{ fontSize: 11, color: "#1B231E", lineHeight: 1.3, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{p.name}</div>
+                <div style={{ fontSize: 11.5, fontWeight: 700, color: "#1B231E", marginTop: 3 }}>£{p.price}</div>
+              </div>
+            </div>
+          );
+        })}
+        {items.length === 0 && <div style={{ gridColumn: "1 / -1", fontSize: 12, color: "#9AA39B", textAlign: "center", padding: 16 }}>Nothing to preview.</div>}
+      </div>
+    </div>
+  );
+}
+
+function WeightSlider({ label, value, onChange }) {
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#5B6760", marginBottom: 4 }}>
+        <span>{label}</span><span style={{ fontWeight: 600, color: "#1B231E" }}>{value}</span>
+      </div>
+      <input type="range" min="0" max="100" value={value} onChange={(e) => onChange(Number(e.target.value))} style={{ width: "100%", accentColor: "#2F6F5E" }} />
+    </div>
+  );
+}
+
+function CollectionDetail({ collection, order, onReorder, sortType, onSortChange, pinnedSkus, setPinnedSkus }) {
+  const [query, setQuery] = useState("");
+  const [lowStockOnly, setLowStockOnly] = useState(false);
+  const [hideOutOfStock, setHideOutOfStock] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+  const [weightedPanelOpen, setWeightedPanelOpen] = useState(false);
+  const [weights, setWeights] = useState({ pop: 25, inv: 25, wide: 25, perf: 25 });
+  const dragIndexRef = useRef(null);
+  const [overIndex, setOverIndex] = useState(null);
+
+  const isManual = sortType === "Manually";
+  const isFiltered = query.trim() !== "" || lowStockOnly || hideOutOfStock;
+  const canDrag = isManual && !isFiltered;
+
+  const maxStock = useMemo(() => Math.max(...collection.products.map(totalStock), 1), [collection]);
+  const pinnedSet = useMemo(() => new Set(pinnedSkus), [pinnedSkus]);
+  const unpinnedOrder = useMemo(() => order.filter((sku) => !pinnedSet.has(sku)), [order, pinnedSet]);
+  const fullDisplayOrder = useMemo(() => [...pinnedSkus, ...unpinnedOrder], [pinnedSkus, unpinnedOrder]);
+
+  const enrichedFull = useMemo(() => {
+    return fullDisplayOrder.map((sku, idx) => {
+      const p = collection.products.find((x) => x.sku === sku);
+      const sig = deriveSignals(p);
+      return { ...p, ...sig, total: totalStock(p), sizesIn: sizesInStock(p), position: idx + 1, pinned: pinnedSet.has(sku) };
+    });
+  }, [fullDisplayOrder, collection, pinnedSet]);
+
+  const displayList = useMemo(() => {
+    let list = enrichedFull;
+    if (query.trim()) { const q = query.trim().toLowerCase(); list = list.filter((p) => p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q)); }
+    if (lowStockOnly) list = list.filter((p) => stockStatus(p.total) !== "ok");
+    if (hideOutOfStock) list = list.filter((p) => stockStatus(p.total) !== "out");
+    return list;
+  }, [enrichedFull, query, lowStockOnly, hideOutOfStock]);
+
+  function togglePin(sku) { setPinnedSkus((prev) => (prev.includes(sku) ? prev.filter((s) => s !== sku) : [...prev, sku])); }
+
+  function handleAutoSortByInventory() {
+    const sorted = [...collection.products].sort((a, b) => totalStock(b) - totalStock(a) || a.name.localeCompare(b.name)).map((p) => p.sku);
+    onReorder(sorted); onSortChange("Manually");
+  }
+  function handleAutoSortByWideFit() {
+    const sorted = [...collection.products].sort((a, b) => deriveSignals(b).wideFitUnits - deriveSignals(a).wideFitUnits || a.name.localeCompare(b.name)).map((p) => p.sku);
+    onReorder(sorted); onSortChange("Manually");
+  }
+  function handleAutoSortByPerformance() {
+    const sorted = [...collection.products].sort((a, b) => deriveSignals(b).performanceScore - deriveSignals(a).performanceScore || a.name.localeCompare(b.name)).map((p) => p.sku);
+    onReorder(sorted); onSortChange("Manually");
+  }
+  function handleApplyWeightedSort() {
+    const enriched = collection.products.map((p) => ({ p, sig: deriveSignals(p), stock: totalStock(p) }));
+    const maxSold = Math.max(...enriched.map((e) => e.sig.unitsSold30d), 1);
+    const maxStockAll = Math.max(...enriched.map((e) => e.stock), 1);
+    const maxWide = Math.max(...enriched.map((e) => e.sig.wideFitUnits), 1);
+    const maxPerf = Math.max(...enriched.map((e) => e.sig.performanceScore), 1);
+    const sumW = weights.pop + weights.inv + weights.wide + weights.perf || 1;
+    const scored = enriched.map((e) => ({
+      sku: e.p.sku,
+      score: (weights.pop / sumW) * (e.sig.unitsSold30d / maxSold) + (weights.inv / sumW) * (e.stock / maxStockAll) + (weights.wide / sumW) * (e.sig.wideFitUnits / maxWide) + (weights.perf / sumW) * (e.sig.performanceScore / maxPerf),
+    })).sort((a, b) => b.score - a.score).map((e) => e.sku);
+    onReorder(scored); onSortChange("Manually"); setWeightedPanelOpen(false);
+  }
+
+  function handleDragStart(index) { dragIndexRef.current = index; }
+  function handleDragOver(e, index) { e.preventDefault(); setOverIndex(index); }
+  function handleDrop(index) {
+    const from = dragIndexRef.current;
+    if (from === null || from === index) { setOverIndex(null); return; }
+    const next = [...unpinnedOrder];
+    const [moved] = next.splice(from, 1);
+    next.splice(index, 0, moved);
+    const rebuilt = rebuildOrderAfterUnpinnedDrag(order, pinnedSkus, next);
+    onReorder(rebuilt);
+    dragIndexRef.current = null;
+    setOverIndex(null);
+  }
+
+  const sumW = weights.pop + weights.inv + weights.wide + weights.perf || 1;
+
+  return (
+    <div style={{ maxWidth: 1280, margin: "0 auto", padding: 20, display: "flex", gap: 16, alignItems: "flex-start" }}>
+      <div style={{ flex: "1 1 600px", minWidth: 0, background: "#FFFFFF", border: "1px solid #E2E5E0", borderRadius: 10, overflow: "hidden" }}>
+        <div style={{ padding: "16px 20px 14px" }}>
+          <h2 style={{ fontSize: 16, fontWeight: 700, color: "#1B231E", margin: "0 0 12px" }}>Products</h2>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+            <div style={{ position: "relative", display: "flex", alignItems: "center", border: "1px solid #D7DAD4", borderRadius: 8, padding: "8px 12px", fontSize: 13, flex: "1 1 180px" }}>
+              <span style={{ color: "#5B6760", pointerEvents: "none" }}>Sort:&nbsp;</span>
+              <select value={sortType} onChange={(e) => onSortChange(e.target.value)}
+                style={{ flex: 1, border: "none", outline: "none", background: "transparent", fontSize: 13, fontWeight: 600, color: "#1B231E", appearance: "none", WebkitAppearance: "none", cursor: "pointer", paddingRight: 20 }}>
+                {SORT_OPTIONS.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+              </select>
+              <ArrowUpDown size={14} color="#9AA39B" style={{ position: "absolute", right: 12, pointerEvents: "none" }} />
+            </div>
+            <button onClick={handleAutoSortByInventory} style={{ display: "flex", alignItems: "center", gap: 7, border: "1px solid #2F6F5E", background: "#E8F2EE", color: "#2F6F5E", borderRadius: 8, padding: "8px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>
+              <ArrowDownWideNarrow size={15} /> Highest inventory
+            </button>
+            <button onClick={handleAutoSortByWideFit} style={{ display: "flex", alignItems: "center", gap: 7, border: "1px solid #2F6F5E", background: "#E8F2EE", color: "#2F6F5E", borderRadius: 8, padding: "8px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>
+              <ArrowDownWideNarrow size={15} /> Highest wide-fit stock
+            </button>
+            <button onClick={handleAutoSortByPerformance} style={{ display: "flex", alignItems: "center", gap: 7, border: "1px dashed #6B5B95", background: "#F4F1F9", color: "#6B5B95", borderRadius: 8, padding: "8px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>
+              <ArrowDownWideNarrow size={15} /> Highest performance (mock)
+            </button>
+            <button onClick={() => setWeightedPanelOpen((v) => !v)}
+              style={{ display: "flex", alignItems: "center", gap: 7, border: weightedPanelOpen ? "1px solid #2F6F5E" : "1px solid #E2E5E0", background: weightedPanelOpen ? "#E8F2EE" : "#FFFFFF", color: weightedPanelOpen ? "#2F6F5E" : "#5B6760", borderRadius: 8, padding: "8px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>
+              <SlidersIcon size={14} /> Weighted sort
+            </button>
+          </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, border: "1px solid #E2E5E0", borderRadius: 8, padding: "7px 10px", background: "#FFFFFF", flex: "1 1 180px" }}>
+              <Search size={14} color="#9AA39B" />
+              <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search product or SKU"
+                style={{ border: "none", outline: "none", fontSize: 13, flex: 1, background: "transparent", color: "#1B231E" }} />
+            </div>
+            <button onClick={() => setLowStockOnly((v) => !v)}
+              style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, padding: "7px 12px", borderRadius: 8, border: lowStockOnly ? "1px solid #2F6F5E" : "1px solid #E2E5E0", background: lowStockOnly ? "#E8F2EE" : "#FFFFFF", color: lowStockOnly ? "#2F6F5E" : "#5B6760", cursor: "pointer", whiteSpace: "nowrap" }}>
+              <AlertTriangle size={13} /> Low / out only
+            </button>
+            <button onClick={() => setHideOutOfStock((v) => !v)}
+              style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, padding: "7px 12px", borderRadius: 8, border: hideOutOfStock ? "1px solid #2F6F5E" : "1px solid #E2E5E0", background: hideOutOfStock ? "#E8F2EE" : "#FFFFFF", color: hideOutOfStock ? "#2F6F5E" : "#5B6760", cursor: "pointer", whiteSpace: "nowrap" }}>
+              <CircleSlash size={13} /> Hide out of stock
+            </button>
+            <button onClick={() => setShowPreview((v) => !v)}
+              style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, padding: "7px 12px", borderRadius: 8, border: showPreview ? "1px solid #2F6F5E" : "1px solid #E2E5E0", background: showPreview ? "#E8F2EE" : "#FFFFFF", color: showPreview ? "#2F6F5E" : "#5B6760", cursor: "pointer", whiteSpace: "nowrap" }}>
+              <EyeIcon size={13} /> {showPreview ? "Hide" : "Show"} storefront preview
+            </button>
+          </div>
+          {weightedPanelOpen && (
+            <div style={{ marginTop: 12, padding: 14, border: "1px solid #E2E5E0", borderRadius: 8, background: "#FAFBF9" }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#1B231E", marginBottom: 10 }}>Weighted sort — blend these factors</div>
+              <WeightSlider label="Popularity (units sold, 30d)" value={weights.pop} onChange={(v) => setWeights((w) => ({ ...w, pop: v }))} />
+              <WeightSlider label="Inventory level" value={weights.inv} onChange={(v) => setWeights((w) => ({ ...w, inv: v }))} />
+              <WeightSlider label="Wide-fit availability" value={weights.wide} onChange={(v) => setWeights((w) => ({ ...w, wide: v }))} />
+              <WeightSlider label="Performance score (mock data)" value={weights.perf} onChange={(v) => setWeights((w) => ({ ...w, perf: v }))} />
+              <div style={{ fontSize: 11, color: "#5B6760", marginBottom: 10 }}>
+                Normalized: Popularity {Math.round((weights.pop / sumW) * 100)}% &middot; Inventory {Math.round((weights.inv / sumW) * 100)}% &middot; Wide-fit {Math.round((weights.wide / sumW) * 100)}% &middot; Performance {Math.round((weights.perf / sumW) * 100)}%
+              </div>
+              <button onClick={handleApplyWeightedSort} style={{ border: "1px solid #2F6F5E", background: "#2F6F5E", color: "#FFFFFF", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Apply weighted sort</button>
+            </div>
+          )}
+        </div>
+
+        {!isManual && (
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 8, margin: "0 20px 14px", padding: "10px 12px", borderRadius: 8, background: "#FBF1E2", color: "#A06A1F", fontSize: 12, lineHeight: 1.4 }}>
+            <Lock size={14} style={{ marginTop: 1, flexShrink: 0 }} />
+            <span>This collection sorts by <strong>{sortType}</strong>. Switch to <strong>Manually</strong> to drag products into a new order.</span>
+          </div>
+        )}
+        {isManual && isFiltered && (
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 8, margin: "0 20px 14px", padding: "10px 12px", borderRadius: 8, background: "#F6F7F5", color: "#5B6760", fontSize: 12, lineHeight: 1.4 }}>
+            <Lock size={14} style={{ marginTop: 1, flexShrink: 0 }} />
+            <span>Dragging is paused while a search or filter is active. Clear filters to reorder.</span>
+          </div>
+        )}
+
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 8, margin: "0 20px 14px", padding: "10px 12px", borderRadius: 8, background: "#F4F1F9", color: "#6B5B95", fontSize: 12, lineHeight: 1.4, border: "1px dashed #C9BEDB" }}>
+          <SlidersIcon size={14} style={{ marginTop: 1, flexShrink: 0 }} />
+          <span><strong>Performance</strong> scores below are placeholder mock data, not real analytics — they exist to test the UX before a real GA4-backed version is built.</span>
+        </div>
+
+        <div style={{ overflowX: "auto" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "22px 18px 18px 24px 42px minmax(220px,1fr) 78px 76px 90px 70px 100px 130px", gap: 8, padding: "8px 20px", background: "#F6F7F5", borderTop: "1px solid #E2E5E0", borderBottom: "1px solid #E2E5E0", fontSize: 11, fontWeight: 700, color: "#5B6760", textTransform: "uppercase", letterSpacing: "0.03em", alignItems: "center", minWidth: 850 }}>
+            <span></span><span></span><span></span><span>#</span><span></span>
+            <span>Product</span><span>Status</span><span>Wide fit</span><span>Performance</span><span>Sizes</span><span>Stock</span><span>Total units</span>
+          </div>
+
+          {displayList.length === 0 && <div style={{ padding: "24px 20px", textAlign: "center", fontSize: 13, color: "#9AA39B" }}>No products match this filter.</div>}
+
+          {displayList.map((p, i) => {
+            const dragIdx = i - pinnedSkus.length;
+            const canDragThis = canDrag && !p.pinned;
+            const isOver = canDragThis && overIndex === dragIdx;
+            const stock = stockStatus(p.total);
+            return (
+              <div key={p.sku} draggable={canDragThis}
+                onDragStart={() => canDragThis && handleDragStart(dragIdx)}
+                onDragOver={(e) => canDragThis && handleDragOver(e, dragIdx)}
+                onDrop={() => canDragThis && handleDrop(dragIdx)}
+                onDragEnd={() => setOverIndex(null)}
+                style={{ display: "grid", gridTemplateColumns: "22px 18px 18px 24px 42px minmax(220px,1fr) 78px 76px 90px 70px 100px 130px", gap: 8, padding: "10px 20px", alignItems: "center", borderBottom: i === displayList.length - 1 ? "none" : "1px solid #EEF0EC", background: isOver ? "#E8F2EE" : p.pinned ? "#FFFBF0" : "#FFFFFF", cursor: canDragThis ? "grab" : "default", transition: "background 120ms ease", minWidth: 850 }}>
+                <button onClick={() => togglePin(p.sku)} title={p.pinned ? "Unpin" : "Pin to top"} style={{ display: "flex", justifyContent: "center", border: "none", background: "transparent", cursor: "pointer", padding: 0 }}>
+                  <PinIcon size={14} color={p.pinned ? "#A06A1F" : "#C7CCC5"} fill={p.pinned ? "#A06A1F" : "none"} />
+                </button>
+                <span style={{ display: "flex", justifyContent: "center" }}>{canDragThis && <Grip size={16} color="#B7BCB4" />}</span>
+                <input type="checkbox" style={{ width: 16, height: 16, accentColor: "#2F6F5E" }} />
+                <span style={{ fontSize: 13, color: "#9AA39B" }}>{p.position}</span>
+                <div style={{ width: 38, height: 38, borderRadius: 7, background: "#F1F2EF", border: "1px solid #E7E9E4", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <div style={{ width: 22, height: 22, borderRadius: 5, background: p.color }} />
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 600, color: "#1B231E", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</div>
+                  <div style={{ fontSize: 11, color: "#9AA39B" }}>{p.sku}</div>
+                </div>
+                <PublishedBadge published={p.published} />
+                <WideFitBadge pct={p.wideFitPct} />
+                <PerformanceBadge score={p.performanceScore} />
+                <span style={{ fontSize: 13, color: "#1B231E" }}>{p.sizesIn} / {p.sizes.length}</span>
+                <StockBadge status={stock} />
+                <StockBar total={p.total} max={maxStock} />
+              </div>
+            );
+          })}
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 20px", background: "#F6F7F5", borderTop: "1px solid #E2E5E0" }}>
+          <button disabled style={{ width: 26, height: 26, borderRadius: 6, border: "1px solid #E2E5E0", background: "#FFFFFF", color: "#C7CCC5", display: "flex", alignItems: "center", justifyContent: "center", cursor: "default" }}><ChevronLeft size={13} /></button>
+          <button disabled style={{ width: 26, height: 26, borderRadius: 6, border: "1px solid #E2E5E0", background: "#FFFFFF", color: "#C7CCC5", display: "flex", alignItems: "center", justifyContent: "center", cursor: "default" }}><ChevronLeft size={13} style={{ transform: "rotate(180deg)" }} /></button>
+          <span style={{ fontSize: 13, color: "#5B6760" }}>{displayList.length === enrichedFull.length ? `1-${enrichedFull.length}` : `${displayList.length} of ${enrichedFull.length} shown`}</span>
+        </div>
+      </div>
+
+      {showPreview && <StorefrontPreview items={displayList} />}
+    </div>
+  );
+}
+
+function CollectionInventoryTool() {
+  const [selectedId, setSelectedId] = useState(null);
+  const [order, setOrder] = useState([]);
+  const [sortType, setSortType] = useState("Manually");
+  const [pinnedByCollection, setPinnedByCollection] = useState({});
+  const collection = COLLECTIONS.find((c) => c.id === selectedId);
+  useEffect(() => {
+    if (collection) {
+      setOrder(collection.products.map((p) => p.sku));
+      setSortType(collection.sortType === "Manual" ? "Manually" : collection.sortType);
+    }
+  }, [selectedId]);
+
+  function handleSortChange(newSortType) {
+    setSortType(newSortType);
+    setOrder((current) => getSortedSkus(newSortType, collection.products, current));
+  }
+
+  function setPinnedSkusForCurrent(updater) {
+    setPinnedByCollection((prev) => {
+      const currentArr = prev[collection.id] || [];
+      const next = typeof updater === "function" ? updater(currentArr) : updater;
+      return { ...prev, [collection.id]: next };
+    });
+  }
+
+  const pinnedTotal = Object.values(pinnedByCollection).reduce((sum, arr) => sum + arr.length, 0);
+
+  return (
+    <div style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, sans-serif", background: "#F6F7F5", minHeight: "100vh", color: "#1B231E" }}>
+      <AppHeader />
+      {!collection ? <Dashboard onSelect={setSelectedId} pinnedTotal={pinnedTotal} /> : (
+        <div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "14px 20px", borderBottom: "1px solid #E2E5E0", background: "#FFFFFF" }}>
+            <button onClick={() => setSelectedId(null)} style={{ display: "flex", alignItems: "center", gap: 4, border: "none", background: "transparent", color: "#5B6760", fontSize: 13, fontWeight: 600, cursor: "pointer", padding: "4px 6px", borderRadius: 6 }}>
+              <ChevronLeft size={15} /> All collections
+            </button>
+            <span style={{ color: "#C7CCC5" }}>/</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: "#1B231E" }}>{collection.name}</span>
+          </div>
+          <CollectionDetail collection={collection} order={order} onReorder={setOrder} sortType={sortType} onSortChange={handleSortChange} pinnedSkus={pinnedByCollection[collection.id] || []} setPinnedSkus={setPinnedSkusForCurrent} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(<CollectionInventoryTool />);
+</script>
+</body>
+</html>
