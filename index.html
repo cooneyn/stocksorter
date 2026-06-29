@@ -67,6 +67,49 @@ const SlidersIcon = (p) => (
 const SIZE_RUN = ["3", "4", "5", "6", "7", "8", "9"];
 function makeSizes(pattern) { return SIZE_RUN.map((size, i) => ({ size, qty: pattern[i] ?? 0 })); }
 
+function hashStr(s) {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return h;
+}
+function seededRand(seed) {
+  const x = Math.sin(seed) * 10000;
+  return x - Math.floor(x);
+}
+const STYLE_NAMES = [
+  "Aldgate", "Brimham", "Camber", "Dovedale", "Eastnor", "Farleigh", "Glenavon", "Holkham",
+  "Ingleby", "Jurby", "Kelso", "Lechlade", "Malvern", "Newlyn", "Otterburn", "Penhale",
+  "Quainton", "Rievaulx", "Sandwick", "Thornbury", "Uppingham", "Verwood", "Wensley", "Yelverton",
+  "Ashby", "Berwick", "Cawston", "Dunster", "Elveden", "Faversham", "Gosforth", "Hexham",
+  "Ilkley", "Kirkby", "Langton", "Mildenhall", "Northleach", "Ottery", "Padbury", "Queensferry",
+  "Rutland", "Sherborne", "Thirsk", "Upwell", "Ventnor", "Whitstable", "Yarmouth", "Zennor",
+  "Almondsbury", "Brockenhurst",
+];
+const COLOR_PALETTE = [
+  "#3E2723", "#5D4037", "#26323A", "#1B2631", "#465362", "#6B6F5E", "#736357", "#22272B",
+  "#9FB8AD", "#A9C6D8", "#C9A98C", "#C97B63", "#D9C9A3", "#8C6A4F", "#3D4A52", "#6E4B3A",
+  "#36475A", "#D8B384", "#C2785C", "#E3CBAE", "#A8763F", "#4A3F35", "#5B5246", "#2E2A26",
+];
+function genProducts({ skuPrefix, label, count, colorStart = 0, startIndex = 0 }) {
+  const products = [];
+  for (let i = 0; i < count; i++) {
+    const idx = startIndex + i;
+    const styleName = STYLE_NAMES[idx % STYLE_NAMES.length];
+    const repeat = Math.floor(idx / STYLE_NAMES.length);
+    const suffix = repeat > 0 ? " " + (repeat + 1) : "";
+    const sku = skuPrefix + "-" + String(idx + 1).padStart(3, "0");
+    const seed = hashStr(sku);
+    const pattern = SIZE_RUN.map((_, si) => {
+      const roll = seededRand(seed + si * 11 + 3);
+      return roll < 0.12 ? 0 : Math.round(roll * 9);
+    });
+    const published = seededRand(seed + 97) < 0.07 ? "Draft" : "Active";
+    const color = COLOR_PALETTE[(colorStart + idx) % COLOR_PALETTE.length];
+    products.push({ name: label + " " + styleName + suffix, sku, color, published, sizes: makeSizes(pattern) });
+  }
+  return products;
+}
+
 const COLLECTIONS = [
   { id: "womens-slippers", name: "Women's Wide Fit Slippers", sortType: "Manual", status: "Active", products: [
     { name: "Women's Wide Fit DB Luella Pump Slippers", sku: "WFS-LUE-001", color: "#C9A98C", published: "Active", sizes: makeSizes([2,4,6,5,3,1,0]) },
@@ -78,17 +121,20 @@ const COLLECTIONS = [
     { name: "Women's Wide Fit DB Yeovil Slippers", sku: "WFS-YEO-007", color: "#7C8B7A", published: "Draft", sizes: makeSizes([1,0,0,0,0,0,0]) },
     { name: "Women's Wide Fit DB Florentine Slippers", sku: "WFS-FLO-008", color: "#6B6F5E", published: "Active", sizes: makeSizes([2,2,3,2,1,0,0]) },
     { name: "Women's Wide Fit DB Jolene Slippers", sku: "WFS-JOL-009", color: "#36475A", published: "Active", sizes: makeSizes([4,5,6,4,3,2,1]) },
+    ...genProducts({ skuPrefix: "WFS-X", label: "Women's Wide Fit DB", count: 20, colorStart: 2 }),
   ]},
   { id: "mens-slippers", name: "Men's Wide Fit Slippers", sortType: "Manual", status: "Active", products: [
     { name: "Men's Wide Fit Harker Mule Slippers", sku: "MFS-HAR-001", color: "#4A3F35", published: "Active", sizes: makeSizes([3,5,6,7,5,3,1]) },
     { name: "Men's Wide Fit Coniston Slippers", sku: "MFS-CON-002", color: "#5B5246", published: "Active", sizes: makeSizes([0,0,0,1,0,0,0]) },
     { name: "Men's Wide Fit Bowness Slipper Boot", sku: "MFS-BOW-003", color: "#2E2A26", published: "Active", sizes: makeSizes([4,6,7,8,6,4,2]) },
     { name: "Men's Wide Fit Grasmere Slippers", sku: "MFS-GRA-004", color: "#736357", published: "Draft", sizes: makeSizes([1,1,0,0,0,0,0]) },
+    ...genProducts({ skuPrefix: "MFS-X", label: "Men's Wide Fit", count: 20, colorStart: 5 }),
   ]},
   { id: "womens-slip-on", name: "Women's Wide Fit Slip-On Shoes", sortType: "Manual", status: "Draft", products: [
     { name: "Women's Wide Fit Bexley Slip-On Shoe", sku: "WSO-BEX-001", color: "#8C6A4F", published: "Active", sizes: makeSizes([2,3,4,3,2,1,0]) },
     { name: "Women's Wide Fit Norah Slip-On Loafer", sku: "WSO-NOR-002", color: "#3D4A52", published: "Active", sizes: makeSizes([0,1,1,0,0,0,0]) },
     { name: "Women's Wide Fit Pemberton Slip-On Shoe", sku: "WSO-PEM-003", color: "#6E4B3A", published: "Active", sizes: makeSizes([5,6,7,6,4,2,1]) },
+    ...genProducts({ skuPrefix: "WSO-X", label: "Women's Wide Fit Slip-On", count: 15, colorStart: 8 }),
   ]},
   { id: "womens-boots", name: "Women's Wide Fit Boots", sortType: "Best selling", status: "Active", products: [
     { name: "Women's Wide Fit Harlow Ankle Boot", sku: "WFB-HAR-001", color: "#3E2723", published: "Active", sizes: makeSizes([4,6,7,5,4,2,1]) },
@@ -96,6 +142,7 @@ const COLLECTIONS = [
     { name: "Women's Wide Fit Dakota Knee Boot", sku: "WFB-DAK-003", color: "#1B2631", published: "Active", sizes: makeSizes([2,3,3,2,1,0,0]) },
     { name: "Women's Wide Fit Marlow Lace Boot", sku: "WFB-MAR-004", color: "#6B4F4F", published: "Active", sizes: makeSizes([7,9,10,8,6,4,3]) },
     { name: "Women's Wide Fit Tilly Wedge Boot", sku: "WFB-TIL-005", color: "#2E2A26", published: "Active", sizes: makeSizes([1,1,0,1,0,0,0]) },
+    ...genProducts({ skuPrefix: "WFB-X", label: "Women's Wide Fit Boot", count: 25, colorStart: 1 }),
   ]},
   { id: "mens-trainers", name: "Men's Wide Fit Trainers", sortType: "Manual", status: "Active", products: [
     { name: "Men's Wide Fit Atlas Trainer", sku: "WFT-ATL-001", color: "#1F3A5F", published: "Active", sizes: makeSizes([3,4,6,7,5,3,2]) },
@@ -103,13 +150,39 @@ const COLLECTIONS = [
     { name: "Men's Wide Fit Denholm Sneaker", sku: "WFT-DEN-003", color: "#22272B", published: "Active", sizes: makeSizes([5,6,8,9,7,5,4]) },
     { name: "Men's Wide Fit Esk Trail Trainer", sku: "WFT-ESK-004", color: "#6E7B8B", published: "Draft", sizes: makeSizes([1,0,0,0,0,0,0]) },
     { name: "Men's Wide Fit Fenwick Trainer", sku: "WFT-FEN-005", color: "#3C4A3D", published: "Active", sizes: makeSizes([2,2,3,2,1,1,0]) },
+    ...genProducts({ skuPrefix: "WFT-X", label: "Men's Wide Fit Trainer", count: 20, colorStart: 4 }),
   ]},
   { id: "womens-sandals", name: "Women's Wide Fit Sandals", sortType: "Manual", status: "Draft", products: [
     { name: "Women's Wide Fit Solana Sandal", sku: "WFA-SOL-001", color: "#D8B384", published: "Active", sizes: makeSizes([4,5,6,4,3,1,0]) },
     { name: "Women's Wide Fit Marbella Slide", sku: "WFA-MAR-002", color: "#C2785C", published: "Draft", sizes: makeSizes([0,0,0,0,0,0,0]) },
     { name: "Women's Wide Fit Capri Wedge Sandal", sku: "WFA-CAP-003", color: "#E3CBAE", published: "Active", sizes: makeSizes([2,3,2,2,1,0,0]) },
     { name: "Women's Wide Fit Ravello Slide", sku: "WFA-RAV-004", color: "#A8763F", published: "Active", sizes: makeSizes([6,7,6,5,4,2,1]) },
+    ...genProducts({ skuPrefix: "WFA-X", label: "Women's Wide Fit Sandal", count: 15, colorStart: 9 }),
   ]},
+  { id: "womens-clogs", name: "Women's Wide Fit Clogs", sortType: "Manual", status: "Active",
+    products: genProducts({ skuPrefix: "WFC", label: "Women's Wide Fit Clog", count: 38 }) },
+  { id: "mens-crocs", name: "Mens Crocs", sortType: "Best selling", status: "Active",
+    products: genProducts({ skuPrefix: "MCR", label: "Men's Wide Fit Croc", count: 52, colorStart: 3 }) },
+  { id: "womens-slip-ins", name: "Women's Slip-ins", sortType: "Manual", status: "Active",
+    products: genProducts({ skuPrefix: "WSI", label: "Women's Wide Fit Slip-In", count: 60, colorStart: 6 }) },
+  { id: "tredd-well-boots", name: "Tredd Well Waterproof Boots", sortType: "Manual", status: "Active",
+    products: genProducts({ skuPrefix: "TWB", label: "Tredd Well Waterproof Boot", count: 18, colorStart: 7 }) },
+  { id: "mens-slippers-bunions", name: "Men's Slippers for Bunions", sortType: "Manual", status: "Active",
+    products: genProducts({ skuPrefix: "MSB", label: "Men's Wide Fit Bunion-Friendly Slipper", count: 42, colorStart: 10 }) },
+  { id: "womens-boots-swollen-feet", name: "Women's Boots For Swollen Feet", sortType: "Manual", status: "Active",
+    products: genProducts({ skuPrefix: "WBSF", label: "Women's Wide Fit Swollen-Feet Boot", count: 60, colorStart: 11 }) },
+  { id: "mens-arch-support-trainers", name: "Mens Wide Fit Arch Support Trainers", sortType: "Manual", status: "Active",
+    products: genProducts({ skuPrefix: "MAS", label: "Men's Wide Fit Arch Support Trainer", count: 24, colorStart: 12 }) },
+  { id: "mens-waterproof-trainers", name: "New In Mens Wide Waterproof Trainers", sortType: "Manual", status: "Active",
+    products: genProducts({ skuPrefix: "MWT", label: "Men's Wide Fit Waterproof Trainer", count: 43, colorStart: 13 }) },
+  { id: "nike-running-trainers", name: "Nike Running Trainers", sortType: "Best selling", status: "Active",
+    products: genProducts({ skuPrefix: "NKR", label: "Nike Wide Fit Running Trainer", count: 46, colorStart: 14 }) },
+  { id: "wide-fit-chelsea-boots", name: "Wide Fit Chelsea Boots", sortType: "Manual", status: "Active",
+    products: genProducts({ skuPrefix: "WCB", label: "Wide Fit Chelsea Boot", count: 35, colorStart: 15 }) },
+  { id: "womens-padders", name: "Women's Padders", sortType: "Manual", status: "Active",
+    products: genProducts({ skuPrefix: "WPD", label: "Padders Wide Fit Shoe", count: 40, colorStart: 16 }) },
+  { id: "mens-casual-boots", name: "Men's Casual Wide Fit Boots", sortType: "Manual", status: "Active",
+    products: genProducts({ skuPrefix: "MCB", label: "Men's Casual Wide Fit Boot", count: 60, colorStart: 17 }) },
 ];
 
 function totalStock(p) { return p.sizes.reduce((s, x) => s + x.qty, 0); }
