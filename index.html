@@ -585,6 +585,7 @@ function CollectionDetail({ collection, order, onReorder, sortType, onSortChange
   const [query, setQuery] = useState("");
   const [lowStockOnly, setLowStockOnly] = useState(false);
   const [hideOutOfStock, setHideOutOfStock] = useState(false);
+  const [hideDraft, setHideDraft] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [weightedPanelOpen, setWeightedPanelOpen] = useState(false);
   const [weights, setWeights] = useState({ pop: 25, inv: 25, wide: 25, perf: 25 });
@@ -592,7 +593,7 @@ function CollectionDetail({ collection, order, onReorder, sortType, onSortChange
   const [overIndex, setOverIndex] = useState(null);
 
   const isManual = sortType === "Manually";
-  const isFiltered = query.trim() !== "" || lowStockOnly || hideOutOfStock;
+  const isFiltered = query.trim() !== "" || lowStockOnly || hideOutOfStock || hideDraft;
   const canDrag = isManual && !isFiltered;
 
   const maxStock = useMemo(() => Math.max(...collection.products.map(totalStock), 1), [collection]);
@@ -613,8 +614,9 @@ function CollectionDetail({ collection, order, onReorder, sortType, onSortChange
     if (query.trim()) { const q = query.trim().toLowerCase(); list = list.filter((p) => p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q)); }
     if (lowStockOnly) list = list.filter((p) => stockStatus(p.total) !== "ok");
     if (hideOutOfStock) list = list.filter((p) => stockStatus(p.total) !== "out");
+    if (hideDraft) list = list.filter((p) => p.published !== "Draft");
     return list;
-  }, [enrichedFull, query, lowStockOnly, hideOutOfStock]);
+  }, [enrichedFull, query, lowStockOnly, hideOutOfStock, hideDraft]);
 
   function togglePin(sku) { setPinnedSkus((prev) => (prev.includes(sku) ? prev.filter((s) => s !== sku) : [...prev, sku])); }
 
@@ -701,6 +703,10 @@ function CollectionDetail({ collection, order, onReorder, sortType, onSortChange
             <button onClick={() => setHideOutOfStock((v) => !v)}
               style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, padding: "7px 12px", borderRadius: 8, border: hideOutOfStock ? "1px solid #2F6F5E" : "1px solid #E2E5E0", background: hideOutOfStock ? "#E8F2EE" : "#FFFFFF", color: hideOutOfStock ? "#2F6F5E" : "#5B6760", cursor: "pointer", whiteSpace: "nowrap" }}>
               <CircleSlash size={13} /> Hide out of stock
+            </button>
+            <button onClick={() => setHideDraft((v) => !v)}
+              style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, padding: "7px 12px", borderRadius: 8, border: hideDraft ? "1px solid #2F6F5E" : "1px solid #E2E5E0", background: hideDraft ? "#E8F2EE" : "#FFFFFF", color: hideDraft ? "#2F6F5E" : "#5B6760", cursor: "pointer", whiteSpace: "nowrap" }}>
+              <CircleSlash size={13} /> Hide draft
             </button>
             <button onClick={() => setShowPreview((v) => !v)}
               style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, padding: "7px 12px", borderRadius: 8, border: showPreview ? "1px solid #2F6F5E" : "1px solid #E2E5E0", background: showPreview ? "#E8F2EE" : "#FFFFFF", color: showPreview ? "#2F6F5E" : "#5B6760", cursor: "pointer", whiteSpace: "nowrap" }}>
