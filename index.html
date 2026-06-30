@@ -56,6 +56,13 @@ const EyeIcon = (p) => (
     <circle cx="12" cy="12" r="3" />
   </Icon>
 );
+const ExternalLinkIcon = (p) => (
+  <Icon {...p}>
+    <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" />
+    <polyline points="15 3 21 3 21 9" />
+    <line x1="10" y1="14" x2="21" y2="3" />
+  </Icon>
+);
 const SlidersIcon = (p) => (
   <Icon {...p}>
     <line x1="4" y1="6" x2="20" y2="6" /><circle cx="9" cy="6" r="2" fill="currentColor" />
@@ -697,8 +704,12 @@ function CollectionDetail({ collection, order, onReorder, sortType, onSortChange
             </button>
             <button onClick={() => setShowPreview((v) => !v)}
               style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, padding: "7px 12px", borderRadius: 8, border: showPreview ? "1px solid #2F6F5E" : "1px solid #E2E5E0", background: showPreview ? "#E8F2EE" : "#FFFFFF", color: showPreview ? "#2F6F5E" : "#5B6760", cursor: "pointer", whiteSpace: "nowrap" }}>
-              <EyeIcon size={13} /> {showPreview ? "Hide" : "Show"} storefront preview
+              <EyeIcon size={13} /> {showPreview ? "Hide" : "Show"} preview
             </button>
+            <a href={"https://widefitshoes.co.uk/collections/" + collection.id} target="_blank" rel="noopener noreferrer"
+              style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, padding: "7px 12px", borderRadius: 8, border: "1px solid #E2E5E0", background: "#FFFFFF", color: "#5B6760", cursor: "pointer", whiteSpace: "nowrap", textDecoration: "none" }}>
+              <ExternalLinkIcon size={13} /> Open page
+            </a>
           </div>
           {weightedPanelOpen && (
             <div style={{ marginTop: 12, padding: 14, border: "1px solid #E2E5E0", borderRadius: 8, background: "#FAFBF9" }}>
